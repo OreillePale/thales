@@ -44,37 +44,19 @@ impl<S: Serialize+Debug+Clone> Bencher<S>{
         }
     }
 
-    pub fn bench<G, F, GOutput, FOutput>(
-            &mut self,
-            groupname: &str,
-            name: &str,
-            inputs: &Vec<S>,
-            generate: G, 
-            func: F
-        )
-    where   
-        G: FnOnce(&S) -> GOutput + Clone, // Generator function type
-        F: FnOnce(GOutput) -> FOutput + Clone, // Function to benchmark type
-    {
-        // loop over all inputs
+    pub fn tictac(cl: impl Fn()) -> f64{
+        let start = Instant::now();
+        cl();
+        (start.elapsed().as_nanos() as f64) / 1.0e9
+    }
+
+    pub fn bench(&mut self, groupname: &str, name: &str, inputs: &Vec<S>, meta: impl Fn(&S) -> f64){
         println!("* benching {}/{} with {} repetitions", groupname, name, self.samples);
         for i in 0..inputs.len(){
             let mut times: Vec<f64> = Vec::with_capacity(self.samples);
-            
             for j in 0..self.samples{
-                // prepare function input
-                let finput = generate.clone()(&inputs[i]);
-
-                // evaluate 
-                let start = Instant::now();
-                black_box(func.clone()(finput));
-                let duration = (start.elapsed().as_nanos() as f64)/1.0e9;
-
-                times.push(duration);
+                times.push(meta(&inputs[i]));
             }
-
-            // todo: Weibull ?
-            // ndlr: assuming gaussian distribution positive quantity is not physical
             let mu = mean(&times);
             let std = std(&times);
 
@@ -82,7 +64,7 @@ impl<S: Serialize+Debug+Clone> Bencher<S>{
                 groupname: groupname.to_string(),
                 name: name.to_string(),
                 input: inputs[i].clone(),
-                t_mean: mu,
+                t_mean: mean(&times),
                 t_std: std
             });
             
@@ -96,5 +78,4 @@ impl<S: Serialize+Debug+Clone> Bencher<S>{
         f.write(serde_json::to_string(&self).unwrap().as_bytes()).expect("Unable to write data");
     }
 }
-
 

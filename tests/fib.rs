@@ -1,5 +1,6 @@
 use serde::Serialize; // necessary for implementing the bencher
 use std::fmt::Debug;
+use std::hint::black_box;
 
 use thales::Bencher;
 
@@ -45,9 +46,9 @@ struct FibInput{
     n: usize
 }
 
-fn gen_fib_input(input: &FibInput) -> usize{
-    input.n
-}
+// fn gen_fib_input(input: &FibInput) -> usize{
+//     input.n
+// }
 
 #[test]
 fn test_bencher() {
@@ -55,11 +56,17 @@ fn test_bencher() {
 
     let inputs = vec![1,10,30,40].iter().map(|i| FibInput{n:*i}).collect();
 
-    bencher.bench("fib","stupid",&inputs,gen_fib_input,|x| stupid_fib(x));
-    bencher.bench("fib","less stupid",&inputs,gen_fib_input,|x| less_stupid_fib(x));
-    bencher.bench("fib","golden",&inputs,gen_fib_input,|x| less_stupid_fib(x));
+    bencher.bench2("fib2","stupid",&inputs,|input| {
+        // prepare input
+        let n = input.n;
+        Bencher::<FibInput>::tictac(|| {
+            black_box(stupid_fib(n));
+        })
+    });
+    // bencher.bench("fib","less stupid",&inputs,gen_fib_input,|x| less_stupid_fib(x));
+    // bencher.bench("fib","golden",&inputs,gen_fib_input,|x| less_stupid_fib(x));
 
-    bencher.to_json("./tests/bench_fib.json");
+    bencher.to_json("./tests/bench_fib2.json");
 
     assert_eq!(1,1);
 }
